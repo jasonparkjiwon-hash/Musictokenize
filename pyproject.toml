@@ -1,0 +1,28 @@
+[project]
+name = "musictokenize"
+version = "0.1.0"
+description = "Personal song-sequence model: predict songs I won't skip."
+requires-python = ">=3.10"
+dependencies = [
+    "torch",
+    "numpy",
+    "pandas",
+    "pyarrow",
+    "pyyaml",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
