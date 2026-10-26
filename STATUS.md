@@ -35,4 +35,17 @@ Update it at the end of every phase, in the same commit as the work.
 - Is the 30 second skip threshold right? Compare it against the skipped flag.
 
 ## Decisions and deviations
-- None yet.
+Record every choice that isn't spelled out in `PLAN.md`, and every place the work departs from it.
+Add a row when it happens, newest last. Don't rewrite old rows; if a decision is reversed, add a
+new row that says so. "Decided by" is `user` or `claude` (a default Claude picked; the user can
+overrule it).
+
+| Date | Phase | Decision or deviation | Why | Decided by |
+|---|---|---|---|---|
+| 2026-10-26 | 0 | Work is developed on branch `claude/new-session-pae0ve`, not a branch per phase | Session setup designates this branch | user |
+| 2026-10-26 | 0 | Do only the phase the user asks for, then stop and wait | User wants to trigger each phase themselves | user |
+| 2026-10-26 | 0 | Added `STATUS.md` (this file), not in PLAN.md's Phase 0 layout | Lets a new session resume without chat history | user |
+| 2026-10-26 | 0 | `data/processed/` is gitignored too, not just `data/raw/` | Processed tables are derived from personal listening history | claude |
+| 2026-10-26 | 0 | Config lives in a single `config.yaml` read with PyYAML | Simplest option for "a config file"; Phase 4 asks for config-driven training | claude |
+| 2026-10-26 | 0 | PyTorch listed as a dependency but not installed in the cloud container yet | Phase 0 needs no model code; avoids a large download | claude |
+| 2026-10-26 | 0 | `PLAN.md` copied into the repo unchanged | Plan is the source of truth for later sessions | claude |
