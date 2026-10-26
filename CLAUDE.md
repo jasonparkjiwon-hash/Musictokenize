@@ -1,5 +1,8 @@
 # Musictokenize
 
+**Start every session by reading `STATUS.md`** (current phase, next step, open questions).
+Update it at the end of each phase.
+
 ## Goal
 A tiny language model where the vocabulary is songs. Given a seed song (and optionally recent
 songs), return a sequence I am unlikely to skip. Tempo and genre don't matter; only "would I skip
