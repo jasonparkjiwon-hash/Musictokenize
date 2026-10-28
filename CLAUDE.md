@@ -1,5 +1,7 @@
 # Musictokenize
 
+**PROJECT CLOSED (failed at proof of concept, 2026-10-28). Do not continue unless the user reopens it.**
+
 **Start every session by reading `STATUS.md`** (current phase, next step, open questions).
 Update it at the end of each phase.
 

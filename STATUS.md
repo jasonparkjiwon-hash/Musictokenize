@@ -1,11 +1,24 @@
 # Status
 
+> **PROJECT CLOSED: failed at proof-of-concept stage (user decision, 2026-10-28).**
+> Phases 5-9 were not started. Do not continue unless the user explicitly reopens it. See "Why it was closed" below.
+
 Handoff file for new sessions. Read this first, then `CLAUDE.md` and the relevant phase in `PLAN.md`.
 Update it at the end of every phase, in the same commit as the work.
 
+## Why it was closed
+The proof of concept asked: can a model trained on my own history suggest songs I am less likely to skip than simple baselines? After Phases 0-4 the answer was no:
+- The GRU next-song model (val hit@10 0.027-0.037) did not beat feature kNN (0.037) or, clearly, bigram (0.030) on next-song prediction.
+- Next-song models, GRU included, pick songs skipped 50-58% of the time (pick_skip), while context-blind "popular songs I usually keep" picks are skipped only 30-33%. The simple baseline already wins on the metric that matters, and nothing built so far beats it.
+- The data is high entropy and small for this: about 134k plays, 4.5k vocab songs, ~70% skips, 14% of validation plays are songs outside the vocab, and a quarter of plays are rapid-skip browsing bursts.
+- The skip head (Phase 5) was never tried, so the untested hypothesis is that scoring candidates for non-skip could beat popularity. Not run: the user closed the project first.
+
+If ever reopened, start with: a context-blind keep-rate ranker plus light personalisation as the real baseline to beat; a non-burst dev loss and a larger dev slice; order-preserving playlist data for more sequences.
+
 ## Current state
+- **Project status:** CLOSED, failed at proof of concept.
 - **Last completed:** Phase 4 (GRU next-song model trained on own sessions; does not beat the baselines on hit@10). Phases 0-4 done.
-- **Next:** Phase 5 (skip-aware head) when the user says to start. Torch is installed in the current container only (`pip install torch`; the default PyPI build works, download.pytorch.org is blocked by the proxy) when the user says to start (see data findings below first)
+- **Next:** nothing. (If reopened: Phase 5, the skip-aware head.) Torch is installed in the current container only (`pip install torch`; the default PyPI build works, download.pytorch.org is blocked by the proxy) when the user says to start (see data findings below first)
 - **Branch:** `claude/new-session-pae0ve`
 
 ## Phase log
@@ -125,3 +138,4 @@ overrule it).
 | 2026-10-28 | 4 | Sweep trimmed to hidden {128,256} x dropout {0.3,0.5} (embed 64, 30 epochs) | CPU time: about 8 min per full run | claude |
 | 2026-10-28 | 4 | Reported the sweep winner even though the earlier default run scored better on val hit@10 | Selection rule was fixed in advance (dev loss); picking by val would be tuning on val | claude |
 | 2026-10-28 | 4 | Not refit on train+dev after selection | Keeps it simple; costs about one month of data | claude |
+| 2026-10-28 | 4 | Project marked CLOSED as failed at proof of concept; Phases 5-9 not started | User decision after Phase 4 results | user |
