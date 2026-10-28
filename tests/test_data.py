@@ -7,8 +7,10 @@ from musictokenize.data import (
     END,
     START,
     UNK,
+    add_track_counts,
     assign_sessions,
     build_vocab,
+    drop_single_hard_skips,
     label_skips,
     load_history,
     skip_label_agreement,
@@ -108,3 +110,32 @@ def test_load_history_both_formats(tmp_path):
 def test_load_history_empty_dir_errors(tmp_path):
     with pytest.raises(FileNotFoundError):
         load_history(tmp_path)
+
+
+def test_hard_soft_keep_labels():
+    df = plays([("a", "2026-01-01 10:00", 200_000, False),   # keep
+                ("b", "2026-01-01 10:05", 4_999, False),     # hard
+                ("c", "2026-01-01 10:10", 5_000, False),     # soft (exactly 5s is not hard)
+                ("d", "2026-01-01 10:15", 200_000, True)])   # flagged, long -> soft
+    out = label_skips(df, 30_000, 5_000)
+    assert out["skip_type"].tolist() == [0, 2, 1, 1]
+    assert out["skip"].tolist() == [False, True, True, True]
+
+
+def test_drop_single_hard_skips_only_drops_once_heard_hard_skips():
+    df = plays([("once_hard", "2026-01-01 10:00", 1_000),    # dropped
+                ("once_long", "2026-01-01 10:01", 200_000),  # kept: heard fully
+                ("twice", "2026-01-01 10:02", 1_000),        # kept: appears twice
+                ("twice", "2026-01-01 10:03", 1_000)])
+    out = drop_single_hard_skips(add_track_counts(label_skips(df)))
+    assert out["track_id"].tolist() == ["once_long", "twice", "twice"]
+    assert out["track_hard_skips"].tolist() == [0, 2, 2]
+
+
+def test_sequences_carry_skip_types():
+    df = plays([("a", "2026-01-01 10:00", 100_000), ("a", "2026-01-01 10:05", 1_000),
+                ("a", "2026-01-01 10:06", 10_000)])
+    df = label_skips(assign_sessions(df))
+    vocab = {"<PAD>": 0, UNK: 1, START: 2, END: 3, "a": 4}
+    (seq,) = to_sequences(df, vocab)
+    assert seq["skip_types"] == [0, 0, 2, 1, 0]

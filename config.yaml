@@ -6,7 +6,9 @@ paths:
 
 data:
   session_gap_minutes: 30
-  skip_ms_threshold: 30000   # play under this counts as a skip
+  skip_ms_threshold: 30000   # play under this (or flagged) counts as a skip
+  hard_skip_ms: 5000         # under this = hard skip (browsing); other skips are soft
+  drop_single_hard_skips: true  # drop hard-skipped plays of songs heard once in all history
   min_play_count: 3          # vocab cutoff; rarer songs -> <UNK>
   val_months: 2              # last N months held out for validation
 

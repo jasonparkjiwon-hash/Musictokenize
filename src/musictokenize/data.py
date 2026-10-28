@@ -75,12 +75,41 @@ def load_history(raw_dir: str | Path) -> pd.DataFrame:
     return df.sort_values("ts", kind="stable").reset_index(drop=True)
 
 
-def label_skips(df: pd.DataFrame, skip_ms_threshold: int = 30_000) -> pd.DataFrame:
-    """skip = Spotify's skipped flag is true OR the play lasted under the threshold."""
+def label_skips(
+    df: pd.DataFrame, skip_ms_threshold: int = 30_000, hard_skip_ms: int = 5_000
+) -> pd.DataFrame:
+    """Label each play keep / soft skip / hard skip.
+
+    skip      = Spotify's skipped flag is true OR played under skip_ms_threshold
+    hard_skip = played under hard_skip_ms (browsing: rejected almost instantly)
+    soft_skip = skip but not hard (heard enough to judge, then moved on)
+    skip_type = 0 keep, 1 soft skip, 2 hard skip
+    """
     out = df.copy()
     flag = out["skipped_flag"].fillna(False).astype(bool)
     out["skip"] = flag | (out["ms_played"] < skip_ms_threshold)
+    out["hard_skip"] = out["ms_played"] < hard_skip_ms
+    out["soft_skip"] = out["skip"] & ~out["hard_skip"]
+    out["skip_type"] = out["soft_skip"].astype(int) + 2 * out["hard_skip"].astype(int)
     return out
+
+
+def add_track_counts(df: pd.DataFrame) -> pd.DataFrame:
+    """Per-track totals over the whole history: plays and hard-skip plays."""
+    out = df.copy()
+    out["track_plays"] = out.groupby("track_id")["track_id"].transform("size")
+    out["track_hard_skips"] = out.groupby("track_id")["hard_skip"].transform("sum")
+    return out
+
+
+def drop_single_hard_skips(df: pd.DataFrame) -> pd.DataFrame:
+    """Drop plays of songs that appear exactly once in the whole history and were hard-skipped.
+
+    Needs add_track_counts first. One instant skip of a song never heard again carries no
+    usable signal about transitions.
+    """
+    drop = (df["track_plays"] == 1) & df["hard_skip"]
+    return df[~drop].copy()
 
 
 def skip_label_agreement(df: pd.DataFrame, skip_ms_threshold: int = 30_000) -> dict:
@@ -135,7 +164,7 @@ def build_vocab(train: pd.DataFrame, min_count: int = 3) -> dict[str, int]:
 
 
 def to_sequences(df: pd.DataFrame, vocab: dict[str, int]) -> list[dict]:
-    """One dict per session: song ids and skip labels, wrapped in <START> ... <END>.
+    """One dict per session: song ids, skip labels (0/1) and skip types (0 keep, 1 soft, 2 hard), wrapped in <START> ... <END>.
 
     Labels for the <START>/<END> positions are 0 (not a skip) and should be masked by callers.
     """
@@ -144,5 +173,7 @@ def to_sequences(df: pd.DataFrame, vocab: dict[str, int]) -> list[dict]:
     for sid, g in df.groupby("session_id", sort=True):
         ids = [vocab[START]] + [vocab.get(t, unk) for t in g["track_id"]] + [vocab[END]]
         skips = [0] + g["skip"].astype(int).tolist() + [0]
-        seqs.append({"session_id": int(sid), "ids": ids, "skips": skips, "ts": g["ts"].iloc[0]})
+        types = [0] + g["skip_type"].tolist() + [0]
+        seqs.append({"session_id": int(sid), "ids": ids, "skips": skips, "skip_types": types,
+                     "ts": g["ts"].iloc[0]})
     return seqs
