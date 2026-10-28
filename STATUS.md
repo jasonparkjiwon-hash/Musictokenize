@@ -4,15 +4,15 @@ Handoff file for new sessions. Read this first, then `CLAUDE.md` and the relevan
 Update it at the end of every phase, in the same commit as the work.
 
 ## Current state
-- **Last completed:** Phase 0 (repo setup)
-- **Next:** Phase 1 (data to sequences), only when the user says to start
+- **Last completed:** Phase 1 (code and tests done; NOT yet run on the real export)
+- **Next:** user drops the export in `data/raw/`, run `python -m musictokenize.process` and review the printed stats; then Phase 2 or 3 when the user says to start
 - **Branch:** `claude/new-session-pae0ve`
 
 ## Phase log
 | Phase | Status | Notes |
 |---|---|---|
 | 0 Repo setup | Done | Layout, .gitignore, pyproject, config.yaml, CLAUDE.md, config/seed helpers |
-| 1 Data to sequences | Not started | |
+| 1 Data to sequences | Done, pending real data | `data.py`, `process.py`, 11 tests pass. Playlist/library sequences deferred (see decisions) |
 | 2 Metadata enrichment | Not started | Optional |
 | 3 Baselines | Not started | |
 | 4 Pretraining | Not started | |
@@ -23,7 +23,7 @@ Update it at the end of every phase, in the same commit as the work.
 | 9 Evaluation and writeup | Not started | |
 
 ## Facts a new session needs
-- Raw Spotify export is NOT in the repo (gitignored). It goes in `data/raw/`. Check whether it is
+- Raw Spotify export is NOT in the repo (gitignored). It goes in `data/raw/`. Phase 1 has never run on it.
   there before starting Phase 1; if not, ask the user for it.
 - PyTorch is not installed yet (Phase 0 didn't need it). Run `pip install -e ".[dev]"`.
 - Run tests with `pytest` from the repo root.
@@ -49,3 +49,10 @@ overrule it).
 | 2026-10-26 | 0 | Config lives in a single `config.yaml` read with PyYAML | Simplest option for "a config file"; Phase 4 asks for config-driven training | claude |
 | 2026-10-26 | 0 | PyTorch listed as a dependency but not installed in the cloud container yet | Phase 0 needs no model code; avoids a large download | claude |
 | 2026-10-26 | 0 | `PLAN.md` copied into the repo unchanged | Plan is the source of truth for later sessions | claude |
+| 2026-10-28 | 1 | No raw export was available, so Phase 1 was built against the documented Spotify schemas and tested on synthetic data | Don't block on data; real-data run is the first step next session | claude |
+| 2026-10-28 | 1 | Supports both extended (`Streaming_History_Audio_*.json`) and standard (`StreamingHistory*.json`) exports; standard has no URI or skipped flag, so its track ID is `artist||track` and skip is threshold-only | Plan lists standard export as backup | claude |
+| 2026-10-28 | 1 | Skip = `skipped` flag true OR under 30s played | Matches CLAUDE.md; `skip_label_agreement` prints how the two rules differ, to answer the open 30s question | claude |
+| 2026-10-28 | 1 | Time split keeps whole sessions on one side (a session goes to val if it starts in the last 2 months); vocab built from train only | Avoids leakage across the boundary | claude |
+| 2026-10-28 | 1 | Podcasts/audiobooks (no track name) dropped; only needed columns are read, so IP, country, username never enter the tables | Privacy rule | claude |
+| 2026-10-28 | 1 | DEFERRED: converting playlists and library into extra sequences | Needs the real `Playlist*.json` / `YourLibrary.json` layout to be seen first | claude |
+| 2026-10-28 | 1 | Outputs: `plays.parquet`, `vocab.json`, `sequences.pkl` (train/val lists of dicts with ids, skips, session start ts) in `data/processed/` | Simple, gitignored | claude |
