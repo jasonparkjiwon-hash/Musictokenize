@@ -4,8 +4,8 @@ Handoff file for new sessions. Read this first, then `CLAUDE.md` and the relevan
 Update it at the end of every phase, in the same commit as the work.
 
 ## Current state
-- **Last completed:** Phase 3 (baselines + shared eval). Phases 0-3 done.
-- **Next:** Phase 4 (GRU next-song model, pretraining dropped: see decisions) when the user says to start. Needs `pip install torch` first when the user says to start (see data findings below first)
+- **Last completed:** Phase 4 (GRU next-song model trained on own sessions; does not beat the baselines on hit@10). Phases 0-4 done.
+- **Next:** Phase 5 (skip-aware head) when the user says to start. Torch is installed in the current container only (`pip install torch`; the default PyPI build works, download.pytorch.org is blocked by the proxy) when the user says to start (see data findings below first)
 - **Branch:** `claude/new-session-pae0ve`
 
 ## Phase log
@@ -15,7 +15,7 @@ Update it at the end of every phase, in the same commit as the work.
 | 1 Data to sequences | Done | `data.py`, `process.py`, 11 tests pass, ran on real export. Playlist/library sequences deferred (see decisions) |
 | 2 Metadata enrichment | Done | `metadata.py`, `enrich.py`, 3 tests. Exact ID join: 2,838 of 2,897 library songs matched (98.0%); 9,180 songs in songs.parquet, 2,838 in library |
 | 3 Baselines | Done | `evaluate.py`, `baselines.py`, `run_baselines.py`, results in `results/baselines.json`. 27 tests pass |
-| 4 Pretraining | Not started | |
+| 4 Pretraining | Done (own data only) | `model.py`, `train.py`, 6 tests (33 total pass). Sweep winner val hit@10 0.027, below feature_knn 0.037 and bigram 0.030 |
 | 5 Skip-aware fine-tuning | Not started | |
 | 6 Generation | Not started | |
 | 7 Feedback loop | Not started | |
@@ -54,6 +54,22 @@ Run `python -m musictokenize.run_baselines` (about 25s). Val base skip rate (non
 - Feature kNN has the best hit@10/NDCG even though only ~31% of songs have features.
 - Noise warning: `skip rate of hits` rests on 116-310 expected hits for real baselines, so differences of a few points are not meaningful. `pick_skip@10` uses all 8,421 positions and is more stable, but it measures songs' historical skip rate, not a counterfactual.
 - Eval details: ties scored by expected rank; context always starts with `<START>`; positions whose target is `<UNK>` skipped; burst sessions excluded from headline numbers (`all` also stored in results JSON).
+
+## Phase 4 GRU results (own sessions only; pretraining dropped by user decision)
+`python -m musictokenize.train [--sweep]` (about 8 min per 40-epoch run on 4 CPUs; sweep of 4 about 35 min). Embedding 64, tied output weights, 1-layer GRU, windows of 64 songs, AdamW lr 0.003, early stopping on DEV loss (dev = last month of train; val untouched until the end of a run). Bursts included in training.
+
+| Run | dev loss | dev hit@10 | VAL hit@10 | VAL NDCG@10 | VAL kept-hit@10 | VAL skip of hits | VAL pick_skip |
+|---|---|---|---|---|---|---|---|
+| first run (h128, drop 0.3, 40 ep) | 7.98 | 0.052 | 0.037 | 0.021 | 0.044 | 0.494 (n~312) | 0.534 |
+| sweep winner (h256, drop 0.5, 30 ep) | 7.94 | 0.049 | **0.027** | 0.013 | 0.038 | 0.398 (n~226) | 0.497 |
+
+Sweep (dev loss / dev hit@10): h128 d0.3 8.002/0.056; h128 d0.5 7.947/0.051; h256 d0.3 8.105/0.043; h256 d0.5 7.941/0.049. Raw numbers in `results/gru_sweep.json`, per-epoch log of the final run in `results/gru_log.csv`, first run in `results/gru_log_first_run.csv`.
+
+- **GRU does not beat the baselines on next-song hit@10** (val 0.027-0.037 vs feature_knn 0.037, bigram 0.030). Data is high entropy (4.5k songs, lots of discovery; a unigram model has dev NLL 8.58, worse than uniform 8.42; GRU gets 7.94).
+- Heavy overfitting: train loss falls to about 6.3-6.9 while dev loss stalls near 7.9-8.0. More dropout helps dev loss (0.5 > 0.3) but dev loss was still falling at epoch 30 for the winner, so it is not converged.
+- Dev loss and dev hit@10 disagree (best dev loss run is not the best hit@10 run), and dev has only ~4k scored positions, so choices between these configs are within noise. Dev loss includes burst targets (38% of dev targets are in bursts), which are near-random browsing; a non-burst dev loss would be a better selection criterion.
+- The GRU's picks are skipped less than other context-aware models (pick_skip 0.50-0.53 vs bigram 0.53, kNN 0.58) but far more than popularity (0.30-0.33). Skip rate still needs the Phase 5 head.
+- **Validation was looked at twice** (first run, then sweep winner), so val numbers are slightly optimistic as a final estimate. Do not tune further on val; if more tuning is wanted, make dev non-burst and larger, or add a fresh holdout.
 
 ## Library workbook (`data/raw/library.xlsx`, gitignored; user supplied 2026-10-28)
 - Sheets: `All Songs` (2,898 rows: title, artist, album, year, length, playlists, genres, Spotify link), `Categories` (same rows, same `#`: genre, style, decade, mood, tempo, BPM, vocals, language), `Removed Duplicates`, `Summary`, `Category Counts`.
@@ -104,3 +120,8 @@ overrule it).
 | 2026-10-28 | 3 | Phase 4 pretraining on external data dropped for now; Phase 4 will train the GRU on my own sessions only | User decision: sequences only from listening history | user |
 | 2026-10-28 | 3 | Baselines train on all train sequences (bursts included) except keep_popularity and the skip-rate table, which mask bursts | Bursts count for sequence learning, not skip learning | claude |
 | 2026-10-28 | 3 | Added gensim and openpyxl to dependencies | item2vec and workbook reading | claude |
+| 2026-10-28 | 4 | Held out the last month of train as DEV for early stopping and sweep selection; val reported once per run | Avoid tuning on val | claude |
+| 2026-10-28 | 4 | Tied input/output embeddings, loss ignores `<UNK>` and padding targets, sessions cut into 64-song windows without carrying hidden state | Fewer parameters for small data; UNK is unnameable | claude |
+| 2026-10-28 | 4 | Sweep trimmed to hidden {128,256} x dropout {0.3,0.5} (embed 64, 30 epochs) | CPU time: about 8 min per full run | claude |
+| 2026-10-28 | 4 | Reported the sweep winner even though the earlier default run scored better on val hit@10 | Selection rule was fixed in advance (dev loss); picking by val would be tuning on val | claude |
+| 2026-10-28 | 4 | Not refit on train+dev after selection | Keeps it simple; costs about one month of data | claude |

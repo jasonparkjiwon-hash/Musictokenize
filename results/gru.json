@@ -4,13 +4,13 @@
       "num_layers": 1,
       "tie_weights": true,
       "embed_dim": 64,
-      "hidden_dim": 128,
-      "dropout": 0.3
+      "hidden_dim": 256,
+      "dropout": 0.5
     },
     "train": {
       "max_len": 64,
       "batch_size": 128,
-      "epochs": 40,
+      "epochs": 30,
       "lr": 0.003,
       "weight_decay": 1e-05,
       "grad_clip": 1.0,
@@ -24,22 +24,22 @@
     "coverage": 0.8568790397045245,
     "no_burst": {
       "n": 8421,
-      "expected_hits": 312.0,
-      "hit@10": 0.037050231563947274,
-      "ndcg@10": 0.020804326234182307,
-      "hit@10_kept_targets": 0.0439377085650723,
-      "skip_rate_hits@10": 0.4935897435897436,
-      "pick_skip@10": 0.5341707435533471,
+      "expected_hits": 226.0,
+      "hit@10": 0.026837667735423346,
+      "ndcg@10": 0.0127663083513667,
+      "hit@10_kept_targets": 0.03781979977753059,
+      "skip_rate_hits@10": 0.39823008849557523,
+      "pick_skip@10": 0.49715371057653246,
       "base_skip_rate": 0.5729723310770692
     },
     "all": {
       "n": 12992,
-      "expected_hits": 600.0,
-      "hit@10": 0.046182266009852216,
-      "ndcg@10": 0.02525139603550825,
-      "hit@10_kept_targets": 0.04287616511318242,
-      "skip_rate_hits@10": 0.7316666666666667,
-      "pick_skip@10": 0.555174736053071,
+      "expected_hits": 379.0,
+      "hit@10": 0.02917179802955665,
+      "ndcg@10": 0.014536469516908394,
+      "hit@10_kept_targets": 0.03754993342210386,
+      "skip_rate_hits@10": 0.6279683377308707,
+      "pick_skip@10": 0.5224534616990122,
       "base_skip_rate": 0.7109759852216748
     }
   }
