@@ -38,8 +38,15 @@ Update it at the end of every phase, in the same commit as the work.
 - **Skip rate is ~70%** (train 69.9%, val 72.2%). 46% of plays are under 5s, 53% under 10s: heavy browsing/skipping. Skip-rate-of-top-picks is the headline metric, so a random baseline is already ~70% skips.
 - Flag vs 30s rule: flag 68.4%, under-30s 60.0%. 79,525 both; 13,849 flagged but over 30s; 2,436 under 30s but not flagged.
 
+## Library workbook (`data/raw/library.xlsx`, gitignored; user supplied 2026-10-28)
+- Sheets: `All Songs` (2,898 rows: title, artist, album, year, length, playlists, genres, Spotify link), `Categories` (same rows, same `#`: genre, style, decade, mood, tempo, BPM, vocals, language), `Removed Duplicates`, `Summary`, `Category Counts`.
+- 11 playlists (Music Library 2,621; My Playlist 711; Jazz 239; Rap 222; Jazz rap 188; R&B/Soul 179; Classical 109; Korean 60; Country 57; emoji playlists; Liked Songs 3). Song-to-playlist membership only: **no order within a playlist**, so it cannot make sequences (the Phase 1 deferred item stays dropped unless an order-preserving export, e.g. Exportify with added-at, is supplied).
+- Match to history: 97.9% of library songs were played at least once; library songs are 30.9% of distinct played songs but **79.8% of plays**. So non-library songs are ~20% of plays and ~69% of distinct songs: mostly discovery/browsing.
+- Tempo, BPM and mood in `Categories` are model-estimated by the user's earlier Claude pass ("Genre based on" column says Spotify tag vs Claude's judgment), so treat as noisy features. 1 row is an unavailable-title placeholder; 1 duplicate link.
+- Useful for Phase 2 (features by track ID) and as an "in library" feature/positive signal.
+
 ## Open questions (from PLAN.md)
-- Does the Excel list include Spotify track IDs?
+- ~~Does the Excel list include Spotify track IDs?~~ Yes, resolved 2026-10-28: a `Spotify link` column (`.../track/<id>`), which maps exactly to `spotify:track:<id>` in the history. No fuzzy matching needed.
 - Which external datasets are still available?
 - Is the 30 second skip threshold right? Data says the flag marks ~14k plays the threshold misses, so a longer threshold or flag-only could be tried. Also consider a stricter 'hard skip' (<5s) vs 'soft skip'. User to decide.
 - (Resolved 2026-10-28: hard skip = under 5s, soft skip = other skips.) Plays under ~5s may be browsing, not a judgement on the song. Should they be down-weighted or dropped from training?
@@ -71,3 +78,4 @@ overrule it).
 | 2026-10-28 | 1 | Per-song totals (`track_plays`, `track_hard_skips`) stored in plays.parquet; plays of songs heard exactly once in all history AND hard-skipped are dropped (`drop_single_hard_skips`, switchable in config) | User rule. My reading: "played once in the whole history" = one play total, and that play was under 5s | user |
 | 2026-10-28 | 1 | Sessions are assigned before the drop, so a dropped play still counts as activity for the 30-minute gap | Sessions reflect real listening time | claude |
 | 2026-10-28 | 1 | Burst session = >= 50 plays and >= 70% hard skips (`burst_min_plays`, `burst_min_hard_rate`). Bursts stay in sequences for next-song training; every sequence carries `is_burst` and the skip head (Phase 5) must mask burst sequences | User accepted recommendation: weight bursts out of skip training, keep for sequence modelling. Thresholds are my choice, tuned to match the ~26% of plays seen in 200+ play sessions | user (rule) / claude (thresholds) |
+| 2026-10-28 | 1 | The playlist workbook is not used for sequences (no within-playlist order). It is kept for Phase 2 features and an in-library signal | Playlist order is absent from the file | claude |
