@@ -9,6 +9,8 @@ data:
   skip_ms_threshold: 30000   # play under this (or flagged) counts as a skip
   hard_skip_ms: 5000         # under this = hard skip (browsing); other skips are soft
   drop_single_hard_skips: true  # drop hard-skipped plays of songs heard once in all history
+  burst_min_plays: 50        # session with >= this many plays ...
+  burst_min_hard_rate: 0.7   # ... and >= this share of hard skips is a browsing burst
   min_play_count: 3          # vocab cutoff; rarer songs -> <UNK>
   val_months: 2              # last N months held out for validation
 

@@ -5,7 +5,7 @@ Update it at the end of every phase, in the same commit as the work.
 
 ## Current state
 - **Last completed:** Phase 1 (code, tests, and a successful run on the real extended export)
-- **Next:** decide burst-session handling, then Phase 2 or 3 when the user says to start (see data findings below first)
+- **Next:** Phase 2 or 3 when the user says to start (see data findings below first)
 - **Branch:** `claude/new-session-pae0ve`
 
 ## Phase log
@@ -34,7 +34,7 @@ Update it at the end of every phase, in the same commit as the work.
 - Split: train 121,191 / val 15,339. Vocab 4,554 incl. specials; 15.3% of val plays are outside it (UNK).
 - 11,120 distinct tracks; 4,932 heard once. Top 50 tracks are only 7.3% of plays (not a replay-my-favourites listener).
 - **Skip types after the hard/soft split:** keep 30.3%, soft 24.7%, hard 45.0%. 1,940 one-off hard-skipped plays dropped. Val plays outside vocab now 14.3%.
-- **Longest session (3,532 plays) is a rapid-skip burst:** 2.6h, ~1 play per 2.7s, 100% skipped, 2,613 distinct songs. 68 sessions over 200 plays hold 26% of all plays; they look like browsing/auditioning, not listening. NOT yet filtered or flagged: decision pending (see open questions).
+- **Longest session (3,532 plays) is a rapid-skip burst:** 2.6h, ~1 play per 2.7s, 100% skipped, 2,613 distinct songs. 68 sessions over 200 plays hold 26% of all plays; they look like browsing/auditioning, not listening. Now flagged as `is_burst` (see decisions).
 - **Skip rate is ~70%** (train 69.9%, val 72.2%). 46% of plays are under 5s, 53% under 10s: heavy browsing/skipping. Skip-rate-of-top-picks is the headline metric, so a random baseline is already ~70% skips.
 - Flag vs 30s rule: flag 68.4%, under-30s 60.0%. 79,525 both; 13,849 flagged but over 30s; 2,436 under 30s but not flagged.
 
@@ -42,7 +42,6 @@ Update it at the end of every phase, in the same commit as the work.
 - Does the Excel list include Spotify track IDs?
 - Which external datasets are still available?
 - Is the 30 second skip threshold right? Data says the flag marks ~14k plays the threshold misses, so a longer threshold or flag-only could be tried. Also consider a stricter 'hard skip' (<5s) vs 'soft skip'. User to decide.
-- Burst sessions: exclude from training, down-weight, or keep but mark? They are 26% of plays and almost all skips, so they will dominate the skip head. Recommend keeping them for the next-song/transition signal only off, and excluding from skip-head training; user to decide.
 - (Resolved 2026-10-28: hard skip = under 5s, soft skip = other skips.) Plays under ~5s may be browsing, not a judgement on the song. Should they be down-weighted or dropped from training?
 
 ## Decisions and deviations
@@ -71,3 +70,4 @@ overrule it).
 | 2026-10-28 | 1 | Hard skip = played under 5s (`hard_skip_ms`); soft skip = flagged or under 30s but not hard; `skip_type` 0/1/2 added to plays and sequences. `skip` (0/1) kept as hard or soft | User asked to distinguish hard vs soft | user |
 | 2026-10-28 | 1 | Per-song totals (`track_plays`, `track_hard_skips`) stored in plays.parquet; plays of songs heard exactly once in all history AND hard-skipped are dropped (`drop_single_hard_skips`, switchable in config) | User rule. My reading: "played once in the whole history" = one play total, and that play was under 5s | user |
 | 2026-10-28 | 1 | Sessions are assigned before the drop, so a dropped play still counts as activity for the 30-minute gap | Sessions reflect real listening time | claude |
+| 2026-10-28 | 1 | Burst session = >= 50 plays and >= 70% hard skips (`burst_min_plays`, `burst_min_hard_rate`). Bursts stay in sequences for next-song training; every sequence carries `is_burst` and the skip head (Phase 5) must mask burst sequences | User accepted recommendation: weight bursts out of skip training, keep for sequence modelling. Thresholds are my choice, tuned to match the ~26% of plays seen in 200+ play sessions | user (rule) / claude (thresholds) |

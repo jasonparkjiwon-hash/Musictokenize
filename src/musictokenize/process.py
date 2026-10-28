@@ -10,6 +10,7 @@ from .data import (
     assign_sessions,
     build_vocab,
     drop_single_hard_skips,
+    flag_bursts,
     label_skips,
     load_history,
     skip_label_agreement,
@@ -29,6 +30,7 @@ def main() -> None:
     agreement = skip_label_agreement(plays, d["skip_ms_threshold"])
     plays = label_skips(plays, d["skip_ms_threshold"], d["hard_skip_ms"])
     plays = assign_sessions(plays, d["session_gap_minutes"])  # before dropping: real activity
+    plays = flag_bursts(plays, d["burst_min_plays"], d["burst_min_hard_rate"])
     plays = add_track_counts(plays)
     n_before = len(plays)
     if d["drop_single_hard_skips"]:
@@ -49,6 +51,9 @@ def main() -> None:
     print(f"plays={len(plays)} sessions={plays['session_id'].nunique()} "
           f"train={len(train)} val={len(val)}")
     print(f"vocab={len(vocab)} (unk id {unk_id}); val plays outside vocab: {val_unk:.1%}")
+    b = plays.drop_duplicates("session_id")["is_burst"]
+    print(f"burst sessions={int(b.sum())} holding {plays['is_burst'].mean():.1%} of plays "
+          f"(kept for next-song training, masked from skip-head training)")
     print(f"skip types: keep={(plays['skip_type']==0).mean():.1%} "
           f"soft={(plays['skip_type']==1).mean():.1%} hard={(plays['skip_type']==2).mean():.1%}")
     print(f"skip rate: train={train['skip'].mean():.1%} "

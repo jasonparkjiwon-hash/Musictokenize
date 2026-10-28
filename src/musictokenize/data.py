@@ -145,6 +145,19 @@ def assign_sessions(df: pd.DataFrame, gap_minutes: int = 30) -> pd.DataFrame:
     return out
 
 
+def flag_bursts(df: pd.DataFrame, min_plays: int = 50, min_hard_rate: float = 0.7) -> pd.DataFrame:
+    """Mark sessions that are rapid-skip browsing bursts rather than listening.
+
+    A burst has >= min_plays plays and >= min_hard_rate of them hard skips. Bursts are still
+    valid sequences for next-song learning but must be masked out of skip-head training.
+    """
+    out = df.copy()
+    g = out.groupby("session_id")
+    size, hard = g["hard_skip"].transform("size"), g["hard_skip"].transform("mean")
+    out["is_burst"] = (size >= min_plays) & (hard >= min_hard_rate)
+    return out
+
+
 def time_split(df: pd.DataFrame, val_months: int = 2) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Train on older data, validate on the last val_months. Whole sessions stay on one side."""
     cutoff = df["ts"].max() - pd.DateOffset(months=val_months)
@@ -164,7 +177,8 @@ def build_vocab(train: pd.DataFrame, min_count: int = 3) -> dict[str, int]:
 
 
 def to_sequences(df: pd.DataFrame, vocab: dict[str, int]) -> list[dict]:
-    """One dict per session: song ids, skip labels (0/1) and skip types (0 keep, 1 soft, 2 hard), wrapped in <START> ... <END>.
+    """One dict per session: song ids, skip labels (0/1) and skip types (0 keep, 1 soft, 2 hard), a burst flag (train the skip head only on
+    sequences where is_burst is False), wrapped in <START> ... <END>.
 
     Labels for the <START>/<END> positions are 0 (not a skip) and should be masked by callers.
     """
@@ -175,5 +189,5 @@ def to_sequences(df: pd.DataFrame, vocab: dict[str, int]) -> list[dict]:
         skips = [0] + g["skip"].astype(int).tolist() + [0]
         types = [0] + g["skip_type"].tolist() + [0]
         seqs.append({"session_id": int(sid), "ids": ids, "skips": skips, "skip_types": types,
-                     "ts": g["ts"].iloc[0]})
+                     "is_burst": bool(g["is_burst"].iloc[0]) if "is_burst" in g else False, "ts": g["ts"].iloc[0]})
     return seqs

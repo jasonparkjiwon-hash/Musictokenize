@@ -11,6 +11,7 @@ from musictokenize.data import (
     assign_sessions,
     build_vocab,
     drop_single_hard_skips,
+    flag_bursts,
     label_skips,
     load_history,
     skip_label_agreement,
@@ -139,3 +140,19 @@ def test_sequences_carry_skip_types():
     vocab = {"<PAD>": 0, UNK: 1, START: 2, END: 3, "a": 4}
     (seq,) = to_sequences(df, vocab)
     assert seq["skip_types"] == [0, 0, 2, 1, 0]
+
+
+def test_flag_bursts():
+    rows = [("a", f"2026-01-01 10:{i:02d}", 1_000) for i in range(6)]            # session 0: burst
+    rows += [("b", f"2026-01-01 12:{i:02d}", 200_000) for i in range(6)]         # session 1: listening
+    rows += [("c", f"2026-01-01 14:{i:02d}", 1_000) for i in range(3)]           # session 2: too short
+    df = flag_bursts(label_skips(assign_sessions(plays(rows))), min_plays=5, min_hard_rate=0.7)
+    assert df.groupby("session_id")["is_burst"].first().tolist() == [True, False, False]
+
+
+def test_sequences_carry_burst_flag():
+    rows = [("a", f"2026-01-01 10:{i:02d}", 1_000) for i in range(4)]
+    df = flag_bursts(label_skips(assign_sessions(plays(rows))), min_plays=3, min_hard_rate=0.7)
+    vocab = {"<PAD>": 0, UNK: 1, START: 2, END: 3, "a": 4}
+    (seq,) = to_sequences(df, vocab)
+    assert seq["is_burst"] is True
