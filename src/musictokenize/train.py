@@ -79,7 +79,7 @@ def run_epoch(model, windows, unk, batch_size, opt=None, grad_clip=1.0, shuffle=
                 (loss / n).backward()
                 torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
                 opt.step()
-            total += float(loss)
+            total += float(loss.detach())
             count += n
     return total / max(count, 1)
 

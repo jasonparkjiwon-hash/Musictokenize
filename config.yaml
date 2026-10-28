@@ -17,7 +17,7 @@ data:
 train:
   max_len: 64              # sessions are cut into windows of this many songs
   batch_size: 128
-  epochs: 40
+  epochs: 30
   lr: 0.003
   weight_decay: 0.00001
   grad_clip: 1.0
@@ -34,6 +34,5 @@ model:
   dropout: 0.3
 
 sweep:                      # grid for `python -m musictokenize.train --sweep` (picked on dev loss)
-  embed_dim: [32, 64]
   hidden_dim: [128, 256]
-  dropout: [0.2, 0.4]
+  dropout: [0.3, 0.5]

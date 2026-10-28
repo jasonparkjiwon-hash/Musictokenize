@@ -1,0 +1,46 @@
+{
+  "cfg": {
+    "model": {
+      "num_layers": 1,
+      "tie_weights": true,
+      "embed_dim": 64,
+      "hidden_dim": 128,
+      "dropout": 0.3
+    },
+    "train": {
+      "max_len": 64,
+      "batch_size": 128,
+      "epochs": 40,
+      "lr": 0.003,
+      "weight_decay": 1e-05,
+      "grad_clip": 1.0,
+      "patience": 5,
+      "dev_months": 1,
+      "include_bursts": true,
+      "checkpoint_dir": "checkpoints"
+    }
+  },
+  "val": {
+    "coverage": 0.8568790397045245,
+    "no_burst": {
+      "n": 8421,
+      "expected_hits": 312.0,
+      "hit@10": 0.037050231563947274,
+      "ndcg@10": 0.020804326234182307,
+      "hit@10_kept_targets": 0.0439377085650723,
+      "skip_rate_hits@10": 0.4935897435897436,
+      "pick_skip@10": 0.5341707435533471,
+      "base_skip_rate": 0.5729723310770692
+    },
+    "all": {
+      "n": 12992,
+      "expected_hits": 600.0,
+      "hit@10": 0.046182266009852216,
+      "ndcg@10": 0.02525139603550825,
+      "hit@10_kept_targets": 0.04287616511318242,
+      "skip_rate_hits@10": 0.7316666666666667,
+      "pick_skip@10": 0.555174736053071,
+      "base_skip_rate": 0.7109759852216748
+    }
+  }
+}
