@@ -2,6 +2,8 @@
 
 A scorer is any object with `score(context_ids: list[int]) -> np.ndarray` of length len(vocab):
 higher = more likely next. Context always starts with <START>. Special tokens are masked out.
+Sequence models may instead/also define `score_sequence(ids) -> array [len(ids)-1, V]` whose row
+t-1 equals score(ids[:t]); it is used when present so a session costs one forward pass.
 
 Protocol, on validation sequences, one position per play:
 - target = the song actually played next. Positions whose target is <UNK> are skipped
@@ -51,14 +53,16 @@ def evaluate(scorer, val_seqs: list[dict], vocab: dict, skip_rate: np.ndarray, k
     unk = vocab["<UNK>"]
     rows = []  # (burst, hit, ndcg, target_skip, pick_skip)
     n_total = 0
+    batched = hasattr(scorer, "score_sequence")
     for s in val_seqs:
         ids = s["ids"]
+        all_scores = np.asarray(scorer.score_sequence(ids), dtype=float) if batched else None
         for t in range(1, len(ids) - 1):
             n_total += 1
             target = ids[t]
             if target == unk:
                 continue
-            sc = np.asarray(scorer.score(ids[:t]), dtype=float).copy()
+            sc = (all_scores[t - 1] if batched else np.asarray(scorer.score(ids[:t]), dtype=float)).copy()
             sc[mask] = -np.inf
             greater = int((sc > sc[target]).sum())
             ties = int((sc == sc[target]).sum())

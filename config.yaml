@@ -14,7 +14,26 @@ data:
   min_play_count: 3          # vocab cutoff; rarer songs -> <UNK>
   val_months: 2              # last N months held out for validation
 
+train:
+  max_len: 64              # sessions are cut into windows of this many songs
+  batch_size: 128
+  epochs: 40
+  lr: 0.003
+  weight_decay: 0.00001
+  grad_clip: 1.0
+  patience: 5               # early stop after this many epochs without dev improvement
+  dev_months: 1             # last N months of TRAIN held out for early stopping and sweeps
+  include_bursts: true      # bursts stay in sequence training (skip head will mask them)
+  checkpoint_dir: checkpoints
+
 model:
+  num_layers: 1
+  tie_weights: true         # output layer shares the song embedding (fewer parameters)
   embed_dim: 64
   hidden_dim: 128
   dropout: 0.3
+
+sweep:                      # grid for `python -m musictokenize.train --sweep` (picked on dev loss)
+  embed_dim: [32, 64]
+  hidden_dim: [128, 256]
+  dropout: [0.2, 0.4]
