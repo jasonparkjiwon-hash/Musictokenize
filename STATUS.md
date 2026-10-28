@@ -4,8 +4,8 @@ Handoff file for new sessions. Read this first, then `CLAUDE.md` and the relevan
 Update it at the end of every phase, in the same commit as the work.
 
 ## Current state
-- **Last completed:** Phase 2 (songs.parquet joined to library workbook); Phase 3 in progress
-- **Next:** finish Phase 3 when the user says to start (see data findings below first)
+- **Last completed:** Phase 3 (baselines + shared eval). Phases 0-3 done.
+- **Next:** Phase 4 (GRU next-song model, pretraining dropped: see decisions) when the user says to start. Needs `pip install torch` first when the user says to start (see data findings below first)
 - **Branch:** `claude/new-session-pae0ve`
 
 ## Phase log
@@ -14,7 +14,7 @@ Update it at the end of every phase, in the same commit as the work.
 | 0 Repo setup | Done | Layout, .gitignore, pyproject, config.yaml, CLAUDE.md, config/seed helpers |
 | 1 Data to sequences | Done | `data.py`, `process.py`, 11 tests pass, ran on real export. Playlist/library sequences deferred (see decisions) |
 | 2 Metadata enrichment | Done | `metadata.py`, `enrich.py`, 3 tests. Exact ID join: 2,838 of 2,897 library songs matched (98.0%); 9,180 songs in songs.parquet, 2,838 in library |
-| 3 Baselines | Not started | |
+| 3 Baselines | Done | `evaluate.py`, `baselines.py`, `run_baselines.py`, results in `results/baselines.json`. 27 tests pass |
 | 4 Pretraining | Not started | |
 | 5 Skip-aware fine-tuning | Not started | |
 | 6 Generation | Not started | |
@@ -37,6 +37,23 @@ Update it at the end of every phase, in the same commit as the work.
 - **Longest session (3,532 plays) is a rapid-skip burst:** 2.6h, ~1 play per 2.7s, 100% skipped, 2,613 distinct songs. 68 sessions over 200 plays hold 26% of all plays; they look like browsing/auditioning, not listening. Now flagged as `is_burst` (see decisions).
 - **Skip rate is ~70%** (train 69.9%, val 72.2%). 46% of plays are under 5s, 53% under 10s: heavy browsing/skipping. Skip-rate-of-top-picks is the headline metric, so a random baseline is already ~70% skips.
 - Flag vs 30s rule: flag 68.4%, under-30s 60.0%. 79,525 both; 13,849 flagged but over 30s; 2,436 under 30s but not flagged.
+
+## Phase 3 baseline results (val, non-burst, 8,421 scored plays; coverage 85.7% of plays have an in-vocab target)
+Run `python -m musictokenize.run_baselines` (about 25s). Val base skip rate (non-burst) is 57.3%.
+
+| Model | hit@10 | NDCG@10 | hit@10 (kept targets) | skip rate of hits | pick_skip@10 |
+|---|---|---|---|---|---|
+| random | 0.002 | 0.001 | 0.001 | 0.615 (n~13) | 0.654 |
+| popularity | 0.014 | 0.007 | 0.025 | 0.216 (n~116) | 0.331 |
+| keep_popularity | 0.015 | 0.007 | 0.027 | 0.248 (n~127) | 0.301 |
+| bigram_markov | 0.030 | 0.017 | 0.036 | 0.500 (n~256) | 0.530 |
+| item2vec | 0.031 | 0.021 | 0.024 | 0.667 (n~264) | 0.643 |
+| feature_knn | 0.037 | 0.025 | 0.038 | 0.561 (n~310) | 0.579 |
+
+- **Main finding:** predicting what I play next is NOT the same as predicting what I keep. Context-aware models (bigram, item2vec, kNN) win on hit@10 but their hits are skipped about as often as baseline (50-67%), because much of what follows a song in my history is browsing. Context-blind popularity/keep-popularity pick songs I usually keep (pick_skip 0.30-0.33) and beat them on skip rate. A real model needs the skip head (Phase 5); the target to beat is roughly hit@10 0.037+ AND pick_skip well under 0.30.
+- Feature kNN has the best hit@10/NDCG even though only ~31% of songs have features.
+- Noise warning: `skip rate of hits` rests on 116-310 expected hits for real baselines, so differences of a few points are not meaningful. `pick_skip@10` uses all 8,421 positions and is more stable, but it measures songs' historical skip rate, not a counterfactual.
+- Eval details: ties scored by expected rank; context always starts with `<START>`; positions whose target is `<UNK>` skipped; burst sessions excluded from headline numbers (`all` also stored in results JSON).
 
 ## Library workbook (`data/raw/library.xlsx`, gitignored; user supplied 2026-10-28)
 - Sheets: `All Songs` (2,898 rows: title, artist, album, year, length, playlists, genres, Spotify link), `Categories` (same rows, same `#`: genre, style, decade, mood, tempo, BPM, vocals, language), `Removed Duplicates`, `Summary`, `Category Counts`.
@@ -82,3 +99,8 @@ overrule it).
 | 2026-10-28 | 2 | Sequences come ONLY from the listening history; no playlist/library/external sequences for now | User decision (also: workbook has no playlist order) | user |
 | 2026-10-28 | 2 | `songs.parquet` has one row per PLAYED song (9,180); the 59 library songs never played are reported, not added | They have no listening signal and are outside the vocab | claude |
 | 2026-10-28 | 2 | Library features (genre, mood, tempo, BPM...) are NaN for non-library songs; `in_library` flags them | ~69% of distinct played songs have no features | claude |
+| 2026-10-28 | 3 | Eval protocol in `evaluate.py` (see docstring): "skip rate of top picks" is measured two ways, `skip_rate_hits@10` (skip rate of plays the model would have recommended) and `pick_skip@10` (mean smoothed train skip rate of its 10 picks). Neither is a true counterfactual, since skips are only observed for songs actually played | No ground truth exists for songs never played at that moment | claude |
+| 2026-10-28 | 3 | Headline metrics exclude burst sessions; "all" kept in results JSON | Bursts are nearly all skips whatever is recommended | claude |
+| 2026-10-28 | 3 | Phase 4 pretraining on external data dropped for now; Phase 4 will train the GRU on my own sessions only | User decision: sequences only from listening history | user |
+| 2026-10-28 | 3 | Baselines train on all train sequences (bursts included) except keep_popularity and the skip-rate table, which mask bursts | Bursts count for sequence learning, not skip learning | claude |
+| 2026-10-28 | 3 | Added gensim and openpyxl to dependencies | item2vec and workbook reading | claude |
