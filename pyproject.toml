@@ -9,6 +9,8 @@ dependencies = [
     "pandas",
     "pyarrow",
     "pyyaml",
+    "openpyxl",
+    "gensim",
 ]
 
 [project.optional-dependencies]

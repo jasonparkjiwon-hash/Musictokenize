@@ -4,8 +4,8 @@ Handoff file for new sessions. Read this first, then `CLAUDE.md` and the relevan
 Update it at the end of every phase, in the same commit as the work.
 
 ## Current state
-- **Last completed:** Phase 1 (code, tests, and a successful run on the real extended export)
-- **Next:** Phase 2 or 3 when the user says to start (see data findings below first)
+- **Last completed:** Phase 2 (songs.parquet joined to library workbook); Phase 3 in progress
+- **Next:** finish Phase 3 when the user says to start (see data findings below first)
 - **Branch:** `claude/new-session-pae0ve`
 
 ## Phase log
@@ -13,7 +13,7 @@ Update it at the end of every phase, in the same commit as the work.
 |---|---|---|
 | 0 Repo setup | Done | Layout, .gitignore, pyproject, config.yaml, CLAUDE.md, config/seed helpers |
 | 1 Data to sequences | Done | `data.py`, `process.py`, 11 tests pass, ran on real export. Playlist/library sequences deferred (see decisions) |
-| 2 Metadata enrichment | Not started | Optional |
+| 2 Metadata enrichment | Done | `metadata.py`, `enrich.py`, 3 tests. Exact ID join: 2,838 of 2,897 library songs matched (98.0%); 9,180 songs in songs.parquet, 2,838 in library |
 | 3 Baselines | Not started | |
 | 4 Pretraining | Not started | |
 | 5 Skip-aware fine-tuning | Not started | |
@@ -79,3 +79,6 @@ overrule it).
 | 2026-10-28 | 1 | Sessions are assigned before the drop, so a dropped play still counts as activity for the 30-minute gap | Sessions reflect real listening time | claude |
 | 2026-10-28 | 1 | Burst session = >= 50 plays and >= 70% hard skips (`burst_min_plays`, `burst_min_hard_rate`). Bursts stay in sequences for next-song training; every sequence carries `is_burst` and the skip head (Phase 5) must mask burst sequences | User accepted recommendation: weight bursts out of skip training, keep for sequence modelling. Thresholds are my choice, tuned to match the ~26% of plays seen in 200+ play sessions | user (rule) / claude (thresholds) |
 | 2026-10-28 | 1 | The playlist workbook is not used for sequences (no within-playlist order). It is kept for Phase 2 features and an in-library signal | Playlist order is absent from the file | claude |
+| 2026-10-28 | 2 | Sequences come ONLY from the listening history; no playlist/library/external sequences for now | User decision (also: workbook has no playlist order) | user |
+| 2026-10-28 | 2 | `songs.parquet` has one row per PLAYED song (9,180); the 59 library songs never played are reported, not added | They have no listening signal and are outside the vocab | claude |
+| 2026-10-28 | 2 | Library features (genre, mood, tempo, BPM...) are NaN for non-library songs; `in_library` flags them | ~69% of distinct played songs have no features | claude |
